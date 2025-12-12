@@ -1,4 +1,4 @@
-x`"""
+"""
 Comprehensive model evaluation utilities.
 """
 
@@ -15,7 +15,8 @@ from sklearn.metrics import (
     mean_squared_error,
     mean_absolute_error,
     r2_score,
-    log_loss
+    log_loss,
+    matthews_corrcoef
 )
 from typing import Dict, Any, Optional
 
@@ -42,6 +43,7 @@ def evaluate_classifier(
         - classification_report: Precision, recall, F1 per class
         - confusion_matrix: Raw confusion matrix array
         - confusion_matrix_fig: Interactive Plotly heatmap
+        - mcc: Matthews Correlation Coefficient
         - log_loss: Logarithmic loss (if y_proba provided)
         - roc_curve_fig: ROC curve (if binary and y_proba provided)
         - roc_auc: Area under ROC curve (if binary and y_proba provided)
@@ -55,6 +57,9 @@ def evaluate_classifier(
     # Confusion matrix
     cm = confusion_matrix(y_true, y_pred)
     results['confusion_matrix'] = cm
+
+    # Matthews Correlation Coefficient (robust for class imbalance)
+    results['mcc'] = matthews_corrcoef(y_true, y_pred)
     
     # Confusion matrix visualization
     if class_names is None:
@@ -236,6 +241,9 @@ def print_evaluation_summary(results: Dict[str, Any], task_type: str = "classifi
         
         print("-" * 60)
         print(f"{'Accuracy':<15} {report['accuracy']:.3f}")
+
+        if 'mcc' in results:
+            print(f"{'MCC':<15} {results['mcc']:.3f}")
         
         if 'roc_auc' in results:
             print(f"{'ROC AUC':<15} {results['roc_auc']:.3f}")
