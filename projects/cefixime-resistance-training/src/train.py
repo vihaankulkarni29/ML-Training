@@ -84,9 +84,16 @@ def plot_confusion_matrix_medical(y_true, y_pred, output_path):
         template='plotly_white'
     )
     
-    # Save figure
-    fig.write_image(str(output_path), width=700, height=700)
-    print(f"   ✓ Confusion matrix saved to {output_path}")
+    # Save figure (HTML for compatibility, PNG if kaleido available)
+    try:
+        fig.write_image(str(output_path), width=700, height=700)
+        print(f"   ✓ Confusion matrix saved to {output_path}")
+    except (ValueError, ImportError):
+        # Fallback to HTML if kaleido not available
+        html_path = output_path.with_suffix('.html')
+        fig.write_html(str(html_path))
+        print(f"   ✓ Confusion matrix saved to {html_path} (interactive HTML)")
+        print(f"   ℹ️  Install kaleido for PNG export: pip install kaleido")
 
 
 def train_resistance_model(data_path: str, output_dir: str = "results"):
