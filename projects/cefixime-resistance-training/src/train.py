@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 import joblib
 from pathlib import Path
+import sys
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split, StratifiedKFold
 from sklearn.metrics import (
@@ -18,6 +19,13 @@ from sklearn.metrics import (
 )
 import plotly.graph_objects as go
 import plotly.express as px
+
+# Allow importing shared evaluation utilities
+UTILS_PATH = Path(__file__).resolve().parents[3] / "utils"
+if UTILS_PATH.exists():
+    sys.path.append(str(UTILS_PATH))
+
+from model_evaluation import evaluate_classifier, print_evaluation_summary
 
 
 def build_model():
@@ -256,13 +264,26 @@ def train_resistance_model(data_path: str, output_dir: str = "results"):
     print("DETAILED CLASSIFICATION REPORT")
     print("=" * 70)
     print(classification_report(y_test, y_pred, target_names=['Susceptible', 'Resistant']))
+
+    # 7. Shared evaluation utilities (consistent across projects)
+    print("\n" + "=" * 70)
+    print("SHARED EVALUATION (utils/model_evaluation.py)")
+    print("=" * 70)
+    eval_results = evaluate_classifier(y_test, y_pred, y_proba)
+    print_evaluation_summary(eval_results)
+    # Save utils confusion matrix (HTML for portability, avoids kaleido)
+    cm_utils_path = None
+    if 'confusion_matrix_fig' in eval_results:
+        cm_utils_path = results_path / "confusion_matrix_utils.html"
+        eval_results['confusion_matrix_fig'].write_html(str(cm_utils_path))
+        print(f"   ✓ Utils confusion matrix saved to {cm_utils_path}")
     
-    # 7. Generate Confusion Matrix Visualization
+    # 8. Generate Confusion Matrix Visualization
     print("\n📊 Generating confusion matrix visualization...")
     cm_path = results_path / "confusion_matrix.png"
     cm_path = plot_confusion_matrix_medical(y_test, y_pred, cm_path)
     
-    # 8. Extract and Save Feature Importance
+    # 9. Extract and Save Feature Importance
     print("\n🧬 Analyzing gene importance...")
     feature_importance = pd.DataFrame({
         'gene': X.columns,
@@ -287,19 +308,20 @@ def train_resistance_model(data_path: str, output_dir: str = "results"):
     for idx, row in feature_importance.head(10).iterrows():
         print(f"   {row['gene']:<30} {row['importance']:.4f}")
     
-    # 9. Save Model
+    # 10. Save Model
     print("\n💾 Saving trained model...")
     model_path = models_path / "ceftriaxone_model.pkl"
     joblib.dump(model, model_path)
     print(f"   ✓ Model saved to {model_path}")
     
-    # 10. Summary
+    # 11. Summary
     print("\n" + "=" * 70)
     print("TRAINING PIPELINE COMPLETE")
     print("=" * 70)
     print(f"\n✅ Model Artifacts:")
     print(f"   - Trained model: {model_path}")
     print(f"   - Confusion matrix: {cm_path}")
+    print(f"   - Utils confusion matrix: {cm_utils_path if cm_utils_path else 'n/a'}")
     print(f"   - Feature importance: {top20_path if top20_path.exists() else 'see results folder for timestamped CSV'}")
     
     print(f"\n📈 Key Takeaway:")
