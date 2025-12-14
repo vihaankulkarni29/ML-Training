@@ -8,7 +8,7 @@ import numpy as np
 import joblib
 from pathlib import Path
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, StratifiedKFold
 from sklearn.metrics import (
     accuracy_score,
     recall_score,
@@ -18,6 +18,18 @@ from sklearn.metrics import (
 )
 import plotly.graph_objects as go
 import plotly.express as px
+
+
+def build_model():
+    """Create configured RandomForestClassifier."""
+    return RandomForestClassifier(
+        n_estimators=100,
+        class_weight='balanced',  # Critical for medical AI
+        random_state=42,
+        n_jobs=-1,
+        max_depth=10,  # Prevent overfitting
+        min_samples_split=5
+    )
 
 
 def calculate_specificity(y_true, y_pred):
@@ -88,12 +100,14 @@ def plot_confusion_matrix_medical(y_true, y_pred, output_path):
     try:
         fig.write_image(str(output_path), width=700, height=700)
         print(f"   ✓ Confusion matrix saved to {output_path}")
+        return output_path
     except (ValueError, ImportError):
         # Fallback to HTML if kaleido not available
         html_path = output_path.with_suffix('.html')
         fig.write_html(str(html_path))
         print(f"   ✓ Confusion matrix saved to {html_path} (interactive HTML)")
         print(f"   ℹ️  Install kaleido for PNG export: pip install kaleido")
+        return html_path
 
 
 def train_resistance_model(data_path: str, output_dir: str = "results"):
@@ -133,35 +147,58 @@ def train_resistance_model(data_path: str, output_dir: str = "results"):
     print(f"   Resistant (1):   {resistance_rate*100:.1f}%")
     print(f"   ⚠️  Imbalanced dataset - using class_weight='balanced'")
     
-    # 2. Stratified Train-Test Split
-    print("\n🔀 Performing stratified 80/20 train-test split...")
+    # 2. Stratified K-Fold Cross-Validation (medical metrics)
+    print("\n🔁 Running 5-fold stratified cross-validation (medical metrics)...")
+    skf = StratifiedKFold(n_splits=5, shuffle=True, random_state=42)
+    cv_metrics = []
+    for fold, (train_idx, val_idx) in enumerate(skf.split(X, y), start=1):
+        X_tr, X_val = X.iloc[train_idx], X.iloc[val_idx]
+        y_tr, y_val = y.iloc[train_idx], y.iloc[val_idx]
+        model_cv = build_model()
+        model_cv.fit(X_tr, y_tr)
+        val_pred = model_cv.predict(X_val)
+        val_proba = model_cv.predict_proba(X_val)[:, 1]
+        cv_metrics.append({
+            'fold': fold,
+            'accuracy': accuracy_score(y_val, val_pred),
+            'sensitivity': recall_score(y_val, val_pred),
+            'specificity': calculate_specificity(y_val, val_pred),
+            'roc_auc': roc_auc_score(y_val, val_proba)
+        })
+    cv_df = pd.DataFrame(cv_metrics)
+    print(cv_df.to_string(index=False, formatters={
+        'accuracy': '{:.3f}'.format,
+        'sensitivity': '{:.3f}'.format,
+        'specificity': '{:.3f}'.format,
+        'roc_auc': '{:.3f}'.format,
+    }))
+    cv_mean = cv_df[['accuracy', 'sensitivity', 'specificity', 'roc_auc']].mean()
+    print("\n📈 CV Average Metrics:")
+    print(f"   Accuracy:    {cv_mean['accuracy']:.3f}")
+    print(f"   Sensitivity: {cv_mean['sensitivity']:.3f}")
+    print(f"   Specificity: {cv_mean['specificity']:.3f}")
+    print(f"   ROC-AUC:     {cv_mean['roc_auc']:.3f}")
+
+    # 3. Stratified Train-Test Split for final evaluation artifact
+    print("\n🔀 Performing stratified 80/20 train-test split for final evaluation...")
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, 
-        test_size=0.2, 
-        stratify=y,  # Maintain class balance
+        X, y,
+        test_size=0.2,
+        stratify=y,
         random_state=42
     )
-    
     print(f"   Training set: {len(X_train)} samples")
     print(f"   Test set: {len(X_test)} samples")
-    
-    # 3. Train Random Forest Model
+
+    # 4. Train Random Forest Model on train split
     print("\n🌲 Training Random Forest Classifier...")
     print("   Hyperparameters:")
     print("   - n_estimators: 100")
     print("   - class_weight: 'balanced' (to handle imbalance)")
     print("   - random_state: 42")
     print("   - n_jobs: -1 (parallel processing)")
-    
-    model = RandomForestClassifier(
-        n_estimators=100,
-        class_weight='balanced',  # Critical for medical AI
-        random_state=42,
-        n_jobs=-1,
-        max_depth=10,  # Prevent overfitting
-        min_samples_split=5
-    )
-    
+
+    model = build_model()
     model.fit(X_train, y_train)
     print("   ✅ Model training complete!")
     
@@ -223,7 +260,7 @@ def train_resistance_model(data_path: str, output_dir: str = "results"):
     # 7. Generate Confusion Matrix Visualization
     print("\n📊 Generating confusion matrix visualization...")
     cm_path = results_path / "confusion_matrix.png"
-    plot_confusion_matrix_medical(y_test, y_pred, cm_path)
+    cm_path = plot_confusion_matrix_medical(y_test, y_pred, cm_path)
     
     # 8. Extract and Save Feature Importance
     print("\n🧬 Analyzing gene importance...")
@@ -234,8 +271,15 @@ def train_resistance_model(data_path: str, output_dir: str = "results"):
     
     # Save top 20
     top20_path = results_path / "feature_importance.csv"
-    feature_importance.head(20).to_csv(top20_path, index=False)
-    print(f"   ✓ Top 20 features saved to {top20_path}")
+    top20_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        feature_importance.head(20).to_csv(top20_path, index=False)
+        print(f"   ✓ Top 20 features saved to {top20_path}")
+    except PermissionError:
+        alt_path = results_path / f"feature_importance_{pd.Timestamp.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        feature_importance.head(20).to_csv(alt_path, index=False)
+        top20_path = alt_path
+        print(f"   ⚠️  feature_importance.csv is in use; saved to {alt_path} instead")
     
     # Display top 10
     print("\n🔬 Top 10 Most Important AMR Genes:")
@@ -256,7 +300,7 @@ def train_resistance_model(data_path: str, output_dir: str = "results"):
     print(f"\n✅ Model Artifacts:")
     print(f"   - Trained model: {model_path}")
     print(f"   - Confusion matrix: {cm_path}")
-    print(f"   - Feature importance: {top20_path}")
+    print(f"   - Feature importance: {top20_path if top20_path.exists() else 'see results folder for timestamped CSV'}")
     
     print(f"\n📈 Key Takeaway:")
     print(f"   Sensitivity: {sensitivity:.1%} - We catch {sensitivity:.1%} of resistant cases")
