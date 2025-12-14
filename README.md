@@ -62,7 +62,7 @@ A **Random Forest classifier** that predicts **Ceftriaxone resistance** in *E. c
 #### Local Development
 ```bash
 # Clone repository
-git clone <your-repo-url>
+git clone https://github.com/vihaankulkarni29/ML-Training
 cd ML
 
 # Install dependencies
