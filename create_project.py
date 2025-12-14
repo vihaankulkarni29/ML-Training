@@ -281,7 +281,7 @@ def handle_missing_values(df: pd.DataFrame, strategy: str = "mean") -> pd.DataFr
         raise ValueError(f"Unknown strategy: {strategy}")
 '''
     
-    (project_path / "src" / "preprocessing.py").write_text(preprocessing_content)
+    (project_path / "src" / "preprocessing.py").write_text(preprocessing_content, encoding='utf-8')
     print(f"   ✓ Created src/preprocessing.py")
     
     train_content = '''"""
@@ -359,7 +359,7 @@ def save_model(pipeline, filepath: str = "models/model.pkl"):
     print(f"💾 Model saved to {filepath}")
 '''
     
-    (project_path / "src" / "train.py").write_text(train_content)
+    (project_path / "src" / "train.py").write_text(train_content, encoding='utf-8')
     print(f"   ✓ Created src/train.py")
     
     visualization_content = '''"""
@@ -447,7 +447,7 @@ def plot_feature_importance(model, feature_names, top_n=10):
     return fig
 '''
     
-    (project_path / "src" / "visualization.py").write_text(visualization_content)
+    (project_path / "src" / "visualization.py").write_text(visualization_content, encoding='utf-8')
     print(f"   ✓ Created src/visualization.py")
     
     # Create Streamlit app template
@@ -520,7 +520,7 @@ st.markdown("---")
 st.markdown("Built with ❤️ by Vihaan Kulkarni")
 '''.replace("{PROJECT_NAME}", project_name.title())
     
-    (project_path / "app.py").write_text(app_content)
+    (project_path / "app.py").write_text(app_content, encoding='utf-8')
     print(f"   ✓ Created app.py")
     
     # Create README template
@@ -628,7 +628,7 @@ streamlit run app.py
 **Date:** {get_current_date()}
 """
     
-    (project_path / "README.md").write_text(readme_content)
+    (project_path / "README.md").write_text(readme_content, encoding='utf-8')
     print(f"   ✓ Created README.md")
     
     # Success message

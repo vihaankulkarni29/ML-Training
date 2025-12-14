@@ -1,0 +1,26 @@
+# Core Data Science
+pandas>=2.0.0
+numpy>=1.24.0
+scikit-learn>=1.3.0
+
+# Visualization (Plotly First!)
+plotly>=5.17.0
+kaleido>=0.2.1  # For static image export
+
+# Model Explainability
+shap>=0.42.0
+
+# Deployment
+streamlit>=1.28.0
+
+# Experiment Tracking (Optional - uncomment if needed)
+# mlflow>=2.8.0
+# wandb>=0.15.0
+
+# Deep Learning (Optional - uncomment if needed)
+# torch>=2.0.0
+# tensorflow>=2.13.0
+
+# Utilities
+python-dotenv>=1.0.0
+joblib>=1.3.0
