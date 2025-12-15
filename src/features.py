@@ -90,5 +90,5 @@ def extract_features(input_path: str, output_path: str) -> pd.DataFrame:
 
 if __name__ == "__main__":
     INPUT_PATH = "projects/MIC Regression/data/raw/ecolitraining_set_80.csv"
-    OUTPUT_PATH = "data/processed_features.csv"
+    OUTPUT_PATH = "projects/MIC Regression/data/processed/processed_features.csv"
     extract_features(INPUT_PATH, OUTPUT_PATH)
