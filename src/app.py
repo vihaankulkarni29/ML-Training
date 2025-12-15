@@ -24,9 +24,21 @@ st.set_page_config(
 st.markdown("""
 <style>
     .stMetric {
-        background-color: #f0f2f6;
+        background-color: transparent;
         padding: 10px;
         border-radius: 5px;
+    }
+    .stMetric > div:nth-child(1) {
+        color: #ffffff;
+        font-weight: bold;
+    }
+    .stMetric > div:nth-child(2) {
+        color: #1f77b4;
+        font-size: 24px;
+        font-weight: bold;
+    }
+    div[data-testid="stMetricValue"] {
+        background-color: transparent;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -38,9 +50,13 @@ st.markdown("""
 def load_model():
     """Load trained RandomForest model from disk."""
     try:
+        # Try primary path first, then fallback to project path
         model_path = Path("models/ceftriaxone_model.pkl")
         if not model_path.exists():
-            st.error(f"❌ Model file not found at {model_path}")
+            model_path = Path("projects/cefixime-resistance-training/models/ceftriaxone_model.pkl")
+        
+        if not model_path.exists():
+            st.error(f"❌ Model file not found. Checked:\n- models/ceftriaxone_model.pkl\n- projects/cefixime-resistance-training/models/ceftriaxone_model.pkl")
             return None
         
         model = joblib.load(model_path)
