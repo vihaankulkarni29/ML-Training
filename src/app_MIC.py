@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Any, Dict
 
@@ -10,7 +12,6 @@ from Bio.SeqUtils.ProtParam import ProteinAnalysis
 # ---------------------------------------------------------------------------
 # Feature extraction (self-contained copy from src/features.py)
 # ---------------------------------------------------------------------------
-
 
 def get_properties(seq: Any) -> Dict[str, float]:
     """Compute peptide physicochemical properties safely."""
