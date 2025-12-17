@@ -195,6 +195,48 @@ Computed 7 physicochemical properties using Biopython:
 - 10-50 µM: ⚠️ Weak (marginal)
 - > 50 µM: ❌ Inactive (not viable)
 
+### Known Limitations & Improvement Path
+
+**Current Bottleneck: "Bag of Words" Problem**
+
+R² = 0.45 is acceptable for simple physicochemical features, but the model has hit a performance ceiling because it only sees **ingredients, not the recipe**.
+
+**The Issue:**
+- Sequence `R-R-W-W` (positive charge → hydrophobic) might be highly potent
+- Sequence `W-R-W-R` (alternating pattern) could be ineffective
+- **Problem:** Both have identical weight, charge, GRAVY → model sees them as the same vector
+
+Current features are **sequence-order agnostic**. They summarize global composition but ignore local patterns critical for membrane interaction.
+
+**Proposed Solution: K-mer Features (N-grams)**
+
+Instead of counting single residues, capture **local sequence context**:
+- Count dipeptides: `"KK"`, `"KE"`, `"EK"`, `"WW"`, `"RW"`
+- Preserves positional information without full sequence modeling
+
+**Implementation:**
+```python
+from sklearn.feature_extraction.text import CountVectorizer
+
+# Treat sequences as text, extract character bigrams
+vectorizer = CountVectorizer(analyzer='char', ngram_range=(2, 2))
+kmer_features = vectorizer.fit_transform(sequences)
+```
+
+**Expected Improvement:** R² ~0.45 → **~0.60** (based on similar AMP studies)
+
+**Why Not Deep Learning?**
+- Overfitting risk (small dataset: 3,143 sequences)
+- K-mers provide interpretability (can see which dipeptides drive potency)
+- Computationally cheaper for inference
+
+**Next Steps (If Revisiting):**
+1. Extract 2-mers (dipeptides) from sequences
+2. Combine with existing physicochemical features
+3. Retrain RandomForest with augmented feature set
+4. Validate on held-out test set
+5. Analyze top k-mers for biological plausibility (e.g., `"KK"` = strong positive clustering)
+
 ### Files
 - Feature extraction: `src/features.py`
 - Training: `projects/MIC Regression/src/train.py`
