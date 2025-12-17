@@ -38,20 +38,23 @@ def train_mic_model() -> None:
     print(f"✓ Loaded {len(df)} samples from {data_path}")
 
     # Validate required columns
-    feature_cols = [
-        "mol_weight",
-        "aromaticity",
-        "instability_index",
-        "isoelectric_point",
-        "gravy",
-        "length",
-        "positive_charge",
-    ]
     target_col = "neg_log_mic_microM"
-
-    missing_cols = [c for c in feature_cols + [target_col] if c not in df.columns]
-    if missing_cols:
-        raise ValueError(f"Missing columns: {missing_cols}")
+    
+    if target_col not in df.columns:
+        raise ValueError(f"Target column '{target_col}' not found in data")
+    
+    # Define feature columns: exclude metadata and target
+    exclude_cols = ["SEQUENCE", "MIC", target_col, "NAME", "ID"]
+    feature_cols = [c for c in df.columns if c not in exclude_cols]
+    
+    # Separate physicochemical vs k-mer features for reporting
+    phys_features = [
+        "mol_weight", "aromaticity", "instability_index", 
+        "isoelectric_point", "gravy", "length", "positive_charge"
+    ]
+    kmer_features = [c for c in feature_cols if c.startswith("kmer_")]
+    
+    print(f"✓ Using {len(phys_features)} physicochemical + {len(kmer_features)} k-mer features = {len(feature_cols)} total")
 
     X = df[feature_cols].copy()
     y = df[target_col].copy()
