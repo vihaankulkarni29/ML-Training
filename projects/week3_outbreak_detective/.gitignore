@@ -1,0 +1,14 @@
+# Ignore raw and derived large data files
+data/*.csv
+results/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv
+
+# VS Code
+.vscode/
