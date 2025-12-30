@@ -1,0 +1,16 @@
+{
+    "data_path": "data\\ecolitraining_set_80.csv",
+    "model_dir": "models",
+    "model_path": "models\\peptide_lstm.pth",
+    "batch_size": 64,
+    "learning_rate": 0.001,
+    "epochs": 50,
+    "embedding_dim": 128,
+    "hidden_size": 256,
+    "num_layers": 2,
+    "dropout": 0.3,
+    "min_length": 10,
+    "max_length": 50,
+    "best_loss": 0.8544584327273899,
+    "training_date": "2025-12-30 13:45:01"
+}
