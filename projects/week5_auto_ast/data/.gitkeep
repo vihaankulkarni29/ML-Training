@@ -1,0 +1,17 @@
+# Place your test_plate.jpg file here
+
+This directory should contain bacterial culture plate images for analysis.
+
+## Image Requirements:
+- Top-down view of Petri dish
+- Clear visibility of antibiotic disks
+- Visible zones of inhibition
+- Good contrast and lighting
+- Supported formats: .jpg, .jpeg, .png
+
+## Example:
+```
+data/
+├── test_plate.jpg      # Your test image
+└── .gitkeep           # This file
+```
