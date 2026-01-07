@@ -1,8 +1,13 @@
 # 🧬 Bioinformatics ML Repository
 
-> **Machine Learning Models for Antimicrobial Resistance & Peptide Engineering**
+> **End-to-End Machine Learning Suite for Antimicrobial Resistance & Drug Discovery**
 
-A collection of production-ready ML projects focused on **antimicrobial resistance prediction** and **antimicrobial peptide design**. Built with scikit-learn, Streamlit, and Biopython.
+A comprehensive collection of production-ready ML projects tackling critical challenges in infectious disease and drug development. From resistance prediction to generative drug design and automated diagnostics.
+
+[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://python.org)
+[![ML](https://img.shields.io/badge/ML-Scikit--Learn%20%7C%20PyTorch-orange.svg)](https://scikit-learn.org)
+[![Bio](https://img.shields.io/badge/Bio-BioPython%20%7C%20OpenCV-green.svg)](https://biopython.org)
+[![GitHub](https://img.shields.io/badge/GitHub-vihaankulkarni29-black.svg)](https://github.com/vihaankulkarni29)
 
 ---
 
