@@ -399,6 +399,53 @@ This **computational-experimental hybrid** dramatically reduces time & cost vs. 
 
 ---
 
+## 🔬 Scientific Validation Framework
+
+All projects include built-in validation mechanisms to ensure scientific rigor and prevent common ML failures.
+
+### 1️⃣ **Sparse Data Bias Mitigation** (Week 3: Outbreak Detective)
+**Problem:** Clustering treating single-sample locations as valid clusters.
+
+**Solution:** Filter locations with <5 samples before matrix construction.
+```python
+python src/process_matrix.py --min-location-samples 5
+```
+**Impact:** Prevents geographic clustering artifacts, improves statistical reliability.
+
+### 2️⃣ **Plagiarism Detection** (Week 4: Peptide Generator)
+**Problem:** Generated peptides might be >90% identical to training data (memorization).
+
+**Solution:** Check sequence homology using SequenceMatcher before screening.
+```
+Filtered 2 candidates for high homology (>90% identity)
+✓ Novelty status: NOVEL
+```
+**Impact:** Ensures generated peptides are truly novel for experimental validation.
+
+### 3️⃣ **Extrapolation Detection** (Week 2 & 4: MIC Prediction)
+**Problem:** Regressor predicts values outside training range (hallucination).
+
+**Example:** Training MIC range 0.5-256 µM, but model predicts 0.017 µM
+
+**Solution:** Flag predictions outside training range with confidence indicators.
+```
+Flagged 2 predictions with LOW_CONFIDENCE* (outside training range 0.5-256 µM)
+prediction_confidence: HIGH_CONFIDENCE or LOW_CONFIDENCE*
+```
+**Impact:** Prevents overconfident predictions on extrapolated values.
+
+### 4️⃣ **Image Quality Gating** (Week 5: Auto AST)
+**Problem:** Computer vision fails with poor lighting (too dark or overexposed).
+
+**Solution:** Validate image intensity before analysis.
+```
+Image quality: mean_intensity = 125.4
+✓ Image quality validated (within 50-200 range)
+```
+**Impact:** Prevents false positives/negatives from suboptimal imaging conditions.
+
+---
+
 ## 🔬 Technical Stack
 
 ### Data Science

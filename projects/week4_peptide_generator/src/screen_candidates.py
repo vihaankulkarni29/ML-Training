@@ -2,15 +2,136 @@
 Screening Pipeline for AI-Generated Peptide Candidates.
 Loads generated sequences, computes features, predicts potency (MIC),
 and filters for high-efficacy candidates suitable for experimental validation.
+
+Scientific Validation:
+1. Novelty Check - Ensures generated peptides are NOT plagiarized from training data
+2. Extrapolation Detection - Flags predictions outside training distribution range
 """
 
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+from difflib import SequenceMatcher
+import os
 
 import joblib
 import numpy as np
 import pandas as pd
 from Bio.SeqUtils.ProtParam import ProteinAnalysis
+
+
+# ============================================================================
+# Scientific Validation: Extrapolation Detection
+# ============================================================================
+# Training data MIC range (from Week 2 MIC Regression analysis)
+# These constants should be derived from your actual training data
+TRAIN_MIC_MIN = 0.5  # Minimum observed MIC value in training set (µM)
+TRAIN_MIC_MAX = 256.0  # Maximum observed MIC value in training set (µM)
+
+
+# ============================================================================
+# Scientific Validation: Novelty Check (Plagiarism Detection)
+# ============================================================================
+
+def load_training_data(training_path: str = "") -> Optional[pd.DataFrame]:
+    """Load original training data for plagiarism detection."""
+    if not training_path or not Path(training_path).exists():
+        # Try standard locations
+        standard_paths = [
+            Path("data/ecolitraining_set_80.csv"),
+            Path("../data/ecolitraining_set_80.csv"),
+            Path("../../data/ecolitraining_set_80.csv"),
+        ]
+        for p in standard_paths:
+            if p.exists():
+                training_path = str(p)
+                break
+    
+    if not training_path or not Path(training_path).exists():
+        print("⚠️  Training data not found - skipping plagiarism check")
+        return None
+    
+    try:
+        df = pd.read_csv(training_path)
+        print(f"✓ Loaded training data: {len(df)} reference peptides")
+        return df
+    except Exception as e:
+        print(f"⚠️  Error loading training data: {e}")
+        return None
+
+
+def calculate_homology(candidate: str, training_set: List[str]) -> float:
+    """
+    Scientific Validation: Calculate maximum sequence identity to training set.
+    Uses SequenceMatcher ratio for fast alignment-free similarity.
+    
+    Args:
+        candidate: Generated peptide sequence
+        training_set: List of training peptide sequences
+        
+    Returns:
+        Maximum identity (0-1) to any training sequence
+    """
+    if not training_set:
+        return 0.0
+    
+    max_identity = 0.0
+    for train_seq in training_set:
+        matcher = SequenceMatcher(None, candidate, train_seq)
+        identity = matcher.ratio()
+        max_identity = max(max_identity, identity)
+    
+    return max_identity
+
+
+def check_novelty(sequence: str, training_data: Optional[pd.DataFrame], 
+                  identity_threshold: float = 0.90) -> Tuple[bool, float, str]:
+    """
+    Scientific Validation: Check if candidate is novel (not plagiarized).
+    
+    Args:
+        sequence: Generated peptide sequence
+        training_data: Dataframe with training sequences
+        identity_threshold: Maximum allowed identity (default: 90%)
+        
+    Returns:
+        Tuple of (is_novel, max_identity, novelty_status)
+    """
+    if training_data is None or len(training_data) == 0:
+        return True, 0.0, "NOVEL (No validation data)"
+    
+    # Extract training sequences
+    seq_col = 'sequence' if 'sequence' in training_data.columns else training_data.columns[0]
+    training_sequences = training_data[seq_col].astype(str).tolist()
+    
+    # Calculate homology
+    max_identity = calculate_homology(sequence, training_sequences)
+    
+    # Determine novelty status
+    is_novel = max_identity < identity_threshold
+    if is_novel:
+        status = "✓ NOVEL"
+    else:
+        status = "✗ PLAGIARIZED (>90% match)"
+    
+    return is_novel, max_identity, status
+
+
+def flag_extrapolation(predicted_mic: float) -> Tuple[str, str]:
+    """
+    Scientific Validation: Detect if prediction is extrapolated.
+    
+    Args:
+        predicted_mic: Predicted MIC value in µM
+        
+    Returns:
+        Tuple of (confidence_flag, warning_message)
+    """
+    if predicted_mic < TRAIN_MIC_MIN:
+        return "LOW_CONFIDENCE*", f"Below training floor ({TRAIN_MIC_MIN} µM)"
+    elif predicted_mic > TRAIN_MIC_MAX:
+        return "LOW_CONFIDENCE*", f"Above training ceiling ({TRAIN_MIC_MAX} µM)"
+    else:
+        return "HIGH_CONFIDENCE", "Within training range"
 
 
 # ============================================================================
@@ -233,15 +354,18 @@ def screen_candidates(
     model_path: str,
     vectorizer_path: str = "",
     mic_threshold: float = 5.0,
+    training_data_path: str = "",
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Screen generated peptide candidates for potency.
+    Screen generated peptide candidates for potency and novelty.
+    Includes extrapolation detection for model confidence assessment.
 
     Args:
         candidates_csv: Path to generated_peptides.csv
         model_path: Path to MIC predictor model
         vectorizer_path: Path to k-mer vectorizer
         mic_threshold: MIC cutoff for "potent" (µM)
+        training_data_path: Path to training data for novelty check
 
     Returns:
         Tuple of (all results, potent candidates)
@@ -250,8 +374,12 @@ def screen_candidates(
     print("PEPTIDE CANDIDATE SCREENING PIPELINE")
     print("=" * 70)
 
-    # 1. Load candidates
-    print("\n1. Loading generated candidates...")
+    # 1. Load training data for plagiarism check
+    print("\n1. Loading training data for novelty validation...")
+    training_data = load_training_data(training_data_path)
+    
+    # 2. Load candidates
+    print("\n2. Loading generated candidates...")
     candidates_path = Path(candidates_csv)
     if not candidates_path.exists():
         print(f"✗ Candidates file not found: {candidates_csv}")
@@ -260,8 +388,8 @@ def screen_candidates(
     df_candidates = pd.read_csv(candidates_csv)
     print(f"✓ Loaded {len(df_candidates)} generated sequences")
 
-    # 2. Load model and vectorizer
-    print("\n2. Loading predictive models...")
+    # 3. Load model and vectorizer
+    print("\n3. Loading predictive models...")
     model = load_model(model_path)
     vectorizer = load_vectorizer(vectorizer_path)
 
@@ -269,15 +397,34 @@ def screen_candidates(
         print("✗ Cannot proceed without MIC predictor model")
         return pd.DataFrame(), pd.DataFrame()
 
-    # 3. Predict MIC for each candidate
-    print("\n3. Predicting MIC for candidates...")
+    # 4. Predict MIC for each candidate
+    print("\n4. Predicting MIC and checking novelty...")
     predictions = []
+    plagiarism_count = 0
+    extrapolation_count = 0
 
     for idx, row in df_candidates.iterrows():
         sequence = row["sequence"]
+        
+        # Scientific Validation: Novelty Check
+        is_novel, max_identity, novelty_status = check_novelty(
+            sequence, training_data, identity_threshold=0.90
+        )
+        
+        # Skip plagiarized sequences
+        if not is_novel:
+            plagiarism_count += 1
+            continue
+        
         mic_uM = predict_mic(sequence, model, vectorizer)
 
         if mic_uM is not None:
+            # Scientific Validation: Extrapolation Detection
+            confidence_flag, extrapolation_reason = flag_extrapolation(mic_uM)
+            
+            if "LOW_CONFIDENCE" in confidence_flag:
+                extrapolation_count += 1
+            
             predictions.append(
                 {
                     "sequence": sequence,
@@ -285,11 +432,24 @@ def screen_candidates(
                     "predicted_mic_uM": mic_uM,
                     "predicted_neg_log_mic": -np.log10(mic_uM),
                     "potency_category": categorize_potency(mic_uM),
+                    "max_identity_%": max_identity * 100,
+                    "novelty_status": novelty_status,
+                    "prediction_confidence": confidence_flag,
+                    "extrapolation_reason": extrapolation_reason,
                 }
             )
 
         if (idx + 1) % 10 == 0 or (idx + 1) == len(df_candidates):
             print(f"   Processed {idx + 1}/{len(df_candidates)} sequences")
+
+    if plagiarism_count > 0:
+        print(f"\n✓ Scientific Validation: Plagiarism Check")
+        print(f"   Filtered {plagiarism_count} candidates for being too similar to known peptides (>90% identity)")
+
+    if extrapolation_count > 0:
+        print(f"\n⚠️  Scientific Validation: Extrapolation Detection")
+        print(f"   Flagged {extrapolation_count} predictions with LOW_CONFIDENCE*")
+        print(f"   Training MIC Range: {TRAIN_MIC_MIN} - {TRAIN_MIC_MAX} µM")
 
     df_results = pd.DataFrame(predictions)
 

@@ -4,9 +4,14 @@ import argparse
 import pandas as pd
 import numpy as np
 
-# You are a Big Data Engineer.
+# Scientific Validation: Sparse Data Bias Mitigation
 # This script transforms a massive genomic dataset from Long format
 # into a binary Wide matrix suitable for clustering.
+# 
+# CRITICAL: Filters out samples from rare locations (<5 isolates) to prevent
+# clustering artifacts from single-sample or under-represented locations.
+# This ensures statistical robustness of downstream analysis.
+#
 # Memory management notes:
 # - Limit loaded columns with usecols
 # - Use categorical dtypes for high-cardinality strings to reduce RAM
@@ -38,6 +43,40 @@ def load_data(input_path: str) -> pd.DataFrame:
             df[col] = df[col].astype("category")
 
     return df
+
+
+def filter_rare_locations(df: pd.DataFrame, min_samples: int = 5) -> pd.DataFrame:
+    """
+    Scientific Validation: Remove samples from locations with <min_samples isolates.
+    Prevents clustering artifacts from single-sample or under-represented locations.
+    
+    Args:
+        df: Input dataframe with BioSample and Location columns
+        min_samples: Minimum number of isolates per location (default: 5)
+        
+    Returns:
+        Filtered dataframe with only samples from well-represented locations
+    """
+    if "Location" not in df.columns:
+        return df
+    
+    # Count samples per location
+    location_counts = df['Location'].value_counts()
+    rare_locations = location_counts[location_counts < min_samples].index.tolist()
+    
+    # Get unique BioSamples in rare locations
+    samples_to_drop = df[df['Location'].isin(rare_locations)]['BioSample'].nunique()
+    
+    # Filter out rare locations
+    df_filtered = df[~df['Location'].isin(rare_locations)].copy()
+    
+    if len(rare_locations) > 0:
+        print(f"\n✓ Scientific Validation: Sparse Data Mitigation")
+        print(f"   Dropped {samples_to_drop} samples from {len(rare_locations)} rare locations (<{min_samples} isolates)")
+        print(f"   Remaining samples: {df_filtered['BioSample'].nunique():,}")
+        print(f"   Remaining locations: {df_filtered['Location'].nunique()}")
+    
+    return df_filtered
 
 
 def extract_metadata(df: pd.DataFrame, out_path: str) -> pd.DataFrame:
@@ -100,10 +139,14 @@ def main():
     parser.add_argument("--out-metadata", default=os.path.join("data", "metadata.csv"), help="Output CSV path for metadata")
     parser.add_argument("--low", type=float, default=0.001, help="Drop genes present in < this fraction of samples")
     parser.add_argument("--high", type=float, default=0.999, help="Drop genes present in > this fraction of samples")
+    parser.add_argument("--min-location-samples", type=int, default=5, help="Minimum samples per location (statistical robustness)")
     args = parser.parse_args()
 
     print(f"Loading: {args.input}")
     df = load_data(args.input)
+    
+    # Scientific Validation: Filter rare locations
+    df = filter_rare_locations(df, min_samples=args.min_location_samples)
 
     print("Extracting metadata ...")
     _ = extract_metadata(df, args.out_metadata)
@@ -116,14 +159,14 @@ def main():
 
     # Compute and print stats
     sparsity = compute_sparsity(Xf)
-    print(f"Matrix Shape: {Xf.shape}")
-    print(f"Sparsity: {sparsity * 100:.2f}%")
+    print(f"\n📊 Final Matrix Statistics:")
+    print(f"   Shape: {Xf.shape[0]} samples × {Xf.shape[1]} genes")
+    print(f"   Sparsity: {sparsity * 100:.2f}%")
 
     # Save matrix
     os.makedirs(os.path.dirname(args.out_matrix), exist_ok=True)
-    # Use int8 to save disk, write without index name for simplicity
     Xf.to_csv(args.out_matrix, index=True)
-    print(f"Saved genotype matrix -> {args.out_matrix}")
+    print(f"   Saved genotype matrix → {args.out_matrix}")
 
 
 if __name__ == "__main__":

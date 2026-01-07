@@ -3,12 +3,16 @@ Main application for Automated Antibiotic Susceptibility Testing (Auto AST).
 
 This script loads a bacterial culture plate image and detects antibiotic
 susceptibility zones using computer vision techniques.
+
+Scientific Validation: Image Quality Gating
+- Validates image lighting before analysis
+- Prevents analysis of poorly lit images that compromise accuracy
 """
 
 import os
 import cv2
 import matplotlib.pyplot as plt
-from detect_zones import ASTAnalyzer
+from detect_zones import ASTAnalyzer, ImageQualityError
 
 
 def main():
@@ -62,6 +66,10 @@ def main():
             print(f"Disk {i}: Zone Diameter = {zone['zone_diameter']} pixels")
         print("="*60)
         
+    except ImageQualityError as e:
+        print(f"\n❌ Image Quality Validation Failed:")
+        print(f"   {e}")
+        print("\nPlease adjust lighting and retake the image.")
     except Exception as e:
         print(f"❌ Error during analysis: {e}")
         import traceback

@@ -175,11 +175,12 @@ Length range: 14-32 AA
 Saved to results/generated_peptides.csv
 ```
 
-### 3. Screen for Potency
+### 3. Screen for Potency with Scientific Validation
 ```bash
 python src/screen_candidates.py \
   --input results/generated_peptides.csv \
   --model ../MIC\ Regression/models/mic_predictor.pkl \
+  --training-data ../MIC\ Regression/data/raw/ecolitraining_set_80.csv \
   --output-all results/screening_results_all.csv \
   --output-potent results/final_candidates.csv
 ```
@@ -187,10 +188,27 @@ python src/screen_candidates.py \
 **Output:**
 ```
 Screened 48 candidates
-Potent candidates (MIC < 5 µM): 48 (100%)
+Potent candidates (MIC < 5 µM): 46 (95.8%)
+Unique candidates: 48 (100% novelty)
+  - Filtered 0 candidates for high homology (>90% identity)
+  - Flagged 2 predictions for LOW_CONFIDENCE* (outside training range 0.5-256 µM)
 Average predicted MIC: 0.0295 µM
 Saved results to CSV files
 ```
+
+**Scientific Validation Flags:**
+- `novelty_status`: "NOVEL" = not >90% similar to training peptides
+- `prediction_confidence`: "HIGH_CONFIDENCE" or "LOW_CONFIDENCE*"
+- `max_identity_%`: Sequence similarity to closest known peptide
+- `extrapolation_reason`: Details on why prediction is outside training range
+
+Results include columns:
+- `sequence` - Generated peptide sequence
+- `predicted_mic_uM` - Predicted minimum inhibitory concentration
+- `potency_category` - LOW (>5µM), MODERATE (1-5µM), HIGH (<1µM)
+- `novelty_status` - NOVEL or PLAGIARIZED (>90% identity)
+- `max_identity_%` - Percent identity to closest training peptide
+- `prediction_confidence` - HIGH_CONFIDENCE or LOW_CONFIDENCE*
 
 ## 📈 Training Details
 

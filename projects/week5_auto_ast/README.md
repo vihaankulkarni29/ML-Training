@@ -58,7 +58,8 @@ week5_auto_ast/
      - Top-down view of Petri dish
      - Clear antibiotic disks (white circles)
      - Visible zones of inhibition
-     - Good contrast and lighting
+     - **Good lighting** (mean pixel intensity: 50-200)
+     - Proper focus on plate surface
 
 ## 💻 Usage
 
@@ -68,12 +69,21 @@ python src/main.py
 ```
 
 The system will:
-1. Load the image from `data/test_plate.jpg`
-2. Detect the Petri dish boundary
-3. Identify all antibiotic disks
-4. Measure inhibition zones
-5. Display results with matplotlib
-6. Save annotated image to `results/annotated_plate.jpg`
+1. **Validate image quality** (lighting check - prevents analysis failure)
+2. Load the image from `data/test_plate.jpg`
+3. Detect the Petri dish boundary
+4. Identify all antibiotic disks
+5. Measure inhibition zones
+6. Display results with matplotlib
+7. Save annotated image to `results/annotated_plate.jpg`
+
+### Quality Validation
+The system automatically checks image quality before analysis:
+- **Too Dark** (intensity < 50): Raises `ImageQualityError` with guidance
+- **Overexposed** (intensity > 200): Raises `ImageQualityError` with guidance
+- **Acceptable** (50-200): Proceeds with analysis
+
+This prevents false negatives/positives from poor lighting conditions.
 
 ### Output Example
 ```

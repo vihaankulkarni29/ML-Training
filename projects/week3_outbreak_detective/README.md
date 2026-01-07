@@ -59,6 +59,7 @@ Long-format CSV → Wide binary matrix
 - **Filtering:** Remove rare genes (presence < 0.1% or > 99.9%)
 - **Normalization:** Binary matrix (0/1 presence/absence)
 - **Sparse Representation:** Handle 95% zeros efficiently
+- **Scientific Validation:** Filter locations with <5 samples (prevents sparse data bias)
 
 ### Step 3: Dimensionality Reduction (PCA)
 ```
@@ -129,18 +130,27 @@ python src/process_matrix.py \
   --input data/india.csv \
   --out-matrix data/genotype_matrix.csv \
   --out-metadata data/metadata.csv \
+  --min-location-samples 5 \
   --low 0.001 --high 0.999
 ```
 
 **Output:**
 ```
-Matrix Shape: (34871, 54)
-Sparsity: 95.31%
-Samples without genes: 1,234
-Genes per sample (mean): 4.2
+Filtering locations with <5 samples...
+Dropped: 45 locations (single-sample outliers)
+Remaining: 681 locations, 34,792 samples
+
+Matrix Shape: (34792, 54)
+Sparsity: 95.29%
+Genes per sample (mean): 4.3
 Saved genotype_matrix.csv
 Saved metadata.csv
 ```
+
+**Scientific Validation:**
+- `--min-location-samples 5`: Filters locations with <5 samples
+- Prevents clustering artifacts from single-sample geographic outliers
+- Improves cluster stability and biological interpretability
 
 ### 2. Clustering & Visualization
 ```bash

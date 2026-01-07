@@ -7,11 +7,26 @@ This module contains the ASTAnalyzer class for:
 - Detecting antibiotic disks
 - Measuring zones of inhibition
 - Visualizing and saving results
+- Validating image quality for robust analysis
+
+Scientific Validation: Image Quality Gating
+- Prevents analysis of poorly lit images that compromise accuracy
+- Ensures consistent lighting conditions (mean intensity 50-200)
 """
 
 import cv2
 import numpy as np
 import os
+
+
+# Scientific Validation Constants
+MIN_INTENSITY = 50  # Minimum acceptable mean pixel intensity (too dark otherwise)
+MAX_INTENSITY = 200  # Maximum acceptable mean pixel intensity (avoid overexposure)
+
+
+class ImageQualityError(Exception):
+    """Exception raised when image quality is insufficient for analysis."""
+    pass
 
 
 class ASTAnalyzer:
@@ -32,14 +47,99 @@ class ASTAnalyzer:
         self.plate_mask = None
         self.disks = []
         self.zones = []
+        self.mean_intensity = None
         
     def load_image(self):
-        """Load the image from file."""
+        """
+        Load the image from file and validate image quality.
+        
+        Raises:
+            FileNotFoundError: If image file not found
+            ImageQualityError: If image lighting is outside acceptable range
+        """
         print(f"Loading image from {self.image_path}...")
         self.original_image = cv2.imread(self.image_path)
         if self.original_image is None:
             raise FileNotFoundError(f"Image not found at {self.image_path}")
         print(f"✓ Image loaded: {self.original_image.shape}")
+        
+        # Scientific Validation: Check image quality
+        self._validate_image_quality()
+        
+    def preprocess(self):
+        """Preprocess the image for analysis."""
+        print("Preprocessing image...")
+        # Convert to grayscale
+        self.gray = cv2.cvtColor(self.original_image, cv2.COLOR_BGR2GRAY)
+        
+        # Apply Gaussian blur to reduce noise
+        self.blurred = cv2.GaussianBlur(self.gray, (9, 9), 2)
+        print("✓ Preprocessing complete")
+        
+    def detect_plate(self):
+        """Detect the Petri dish (largest circle) in the image."""
+        print("Detecting Petri dish...")
+        
+        # Use HoughCircles to find circles
+        circles = cv2.HoughCircles(
+            self.blurred,
+            cv2.HOUGH_GRADIENT,
+            dp=1,
+            minDist=500,  # Only one large circle expected
+            param1=50,
+            param2=30,
+            minRadius=100,
+            maxRadius=800
+        )
+        
+        if circles is None:
+            print("⚠ Warning: No plate detected! Using entire image.")
+            # Use entire image as ROI
+            h, w = self.gray.shape
+            self.plate_circle = (w//2, h//2, min(w, h)//2)
+        else:
+            circles = np.uint16(np.around(circles))
+            # Take the largest circle
+            largest = max(circles[0], key=lambda c: c[2])
+            self.plate_circle = tuple(largest)
+            print(f"✓ Plate found: center=({self.plate_circle[0]}, {self.plate_circle[1]}), radius={self.plate_circle[2]}px")
+        # Create a mask for the plate
+        self.plate_mask = np.zeros(self.gray.shape, dtype=np.uint8)
+        cv2.circle(self.plate_mask, (self.plate_circle[0], self.plate_circle[1]), 
+                   self.plate_circle[2], 255, -1)
+    
+    def _validate_image_quality(self):
+        """
+        Validate image quality based on lighting intensity.
+        
+        Raises:
+            ImageQualityError: If mean intensity outside acceptable range [50-200]
+        """
+        # Convert to grayscale if not already
+        if len(self.original_image.shape) == 3:
+            gray_for_quality = cv2.cvtColor(self.original_image, cv2.COLOR_BGR2GRAY)
+        else:
+            gray_for_quality = self.original_image
+        
+        # Calculate mean intensity
+        self.mean_intensity = np.mean(gray_for_quality)
+        
+        print(f"  Image quality: mean_intensity = {self.mean_intensity:.1f}")
+        
+        # Validate intensity range
+        if self.mean_intensity < MIN_INTENSITY:
+            raise ImageQualityError(
+                f"Image is too dark (mean_intensity={self.mean_intensity:.1f}). "
+                f"Minimum required: {MIN_INTENSITY}. Improve lighting and retry."
+            )
+        
+        if self.mean_intensity > MAX_INTENSITY:
+            raise ImageQualityError(
+                f"Image is overexposed (mean_intensity={self.mean_intensity:.1f}). "
+                f"Maximum allowed: {MAX_INTENSITY}. Reduce lighting and retry."
+            )
+        
+        print(f"  ✓ Image quality validated (within {MIN_INTENSITY}-{MAX_INTENSITY} range)")
         
     def preprocess(self):
         """Preprocess the image for analysis."""
