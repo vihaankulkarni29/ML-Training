@@ -31,7 +31,7 @@ A comprehensive collection of production-ready ML projects tackling critical cha
 - **Data:** 3,143 *E. coli* isolates with MIC values
 - **App:** `streamlit run src/app_MIC.py`
 
-### 3. 🧬 **Week 4: Peptide Sequence Generator** ⭐ **NEW**
+### 3. 🧬 **Week 4: Peptide Sequence Generator**
 *Generative AI for Antimicrobial Peptide Design*
 
 - **Task:** Generate novel peptide sequences (generative modeling)
@@ -41,6 +41,20 @@ A comprehensive collection of production-ready ML projects tackling critical cha
 - **Training:** ~10 min CPU / ~2 min GPU | 50 epochs
 - **Status:** ✅ Fully trained, ready for inference
 - **Use:** Computational screening, rational design, drug discovery
+
+### 4. 🧠 **DeepG2P - Deep Resistance Predictor** ⭐ **NEW**
+*1D ResNet for Multi-label Antimicrobial Resistance Prediction from Mass Spectrometry*
+
+- **Task:** Multi-label classification (10 antibiotics)
+- **Model:** ResNet-1D (2M parameters) - Deep CNN with residual blocks
+- **Architecture:** Conv1D → 4 ResBlock stages → Global AvgPool → FC → Sigmoid
+- **Input:** MALDI-TOF mass spectra (6000 m/z bins)
+- **Loss:** BCEWithLogitsLoss with pos_weight (handles class imbalance)
+- **Optimizer:** AdamW (lr=1e-4, weight_decay=1e-5)
+- **Metrics:** AUPRC, AUROC tracked via TensorBoard
+- **Training:** 20 epochs with automatic best model checkpointing
+- **Features:** Flexible model sizes (small/medium/large), feature extraction
+- **Documentation:** See [src/README.md](src/README.md) for detailed architecture
 
 ---
 
@@ -56,10 +70,15 @@ A comprehensive collection of production-ready ML projects tackling critical cha
 
 **Solution:** Use machine learning to **predict peptide efficacy** and **generate new candidates** from physicochemical properties and sequence patterns.
 
-### Peptide Generation (NEW)
+### Peptide Generation
 **Challenge:** Design space for peptides is massive (20^50 for 50-length sequences = 10^65 possibilities). Manual screening is infeasible.
 
 **Solution:** Train generative AI to **learn natural peptide patterns** and create novel, biologically plausible sequences for experimental validation.
+
+### Deep Learning for Mass Spectrometry (NEW)
+**Challenge:** MALDI-TOF mass spectrometry is fast (minutes) but requires expert interpretation. Multi-drug resistance requires testing 10+ antibiotics.
+
+**Solution:** Train deep neural networks to **directly predict resistance profiles** from raw mass spectra, enabling instant multi-drug diagnostics.
 
 ---
 
@@ -94,28 +113,37 @@ ML-Training/
 │           ├── predicted_vs_actual.png   # Predictions visualization
 │           └── feature_importance.png    # Top peptide features
 │   │
-│   └── week4_peptide_generator/          # ⭐ NEW: Generative LSTM
+│   └── week4_peptide_generator/          # Generative LSTM
 │       ├── data/
 │       │   └── ecolitraining_set_80.csv  # 2,872 E. coli peptides
 │       ├── models/
 │       │   ├── peptide_lstm.pth          # Best model (loss: 0.854)
-│       │   ├── peptide_lstm_epoch_*.pth  # Checkpoints (10, 20, 30, 40, 50)
 │       │   └── config.json               # Training hyperparameters
 │       ├── src/
 │       │   ├── vocab.py                  # PeptideVocab: AA tokenization
-│       │   └── train_generator.py        # PyTorch LSTM training & generation
-│       ├── requirements.txt              # Dependencies (torch, pandas, numpy)
-│       └── README.md                     # Full documentation
+│       │   └── train_generator.py        # PyTorch LSTM training
+│       └── README.md
 │
-├── src/
+├── src/                                   # 🆕 DeepG2P Model & Apps
+│   ├── model.py                          # ResNet-1D architecture (DeepG2P, ResidualBlock)
+│   ├── train.py                          # Training pipeline (BCEWithLogitsLoss, AdamW)
 │   ├── app.py                            # Ceftriaxone classifier Streamlit app
 │   ├── app_MIC.py                        # MIC regressor Streamlit app
-│   └── features.py                       # Biopython feature extraction
+│   ├── features.py                       # Biopython feature extraction
+│   └── README.md                         # DeepG2P documentation
+│
+├── models/                                # 🆕 Saved model checkpoints
+│   ├── best_model.pth                    # Best validation loss checkpoint
+│   └── checkpoint_epoch_*.pth            # Periodic training checkpoints
+│
+├── results/                               # 🆕 Training outputs
+│   ├── logs/                             # TensorBoard logs
+│   └── training_config.json              # Hyperparameters & metadata
 │
 ├── utils/
 │   └── model_evaluation.py               # Shared evaluation metrics
 │
-├── requirements.txt                      # Python dependencies
+├── requirements.txt                      # Python dependencies (PyTorch, sklearn, etc.)
 └── README.md                             # This file
 ```
 
@@ -151,6 +179,25 @@ Access at `http://localhost:8501`
 streamlit run src/app_MIC.py
 ```
 Access at `http://localhost:8501`
+
+**DeepG2P Model Training:**
+```bash
+# Train with default parameters
+python src/train.py
+
+# Custom training
+python src/train.py \
+  --train-features data/processed/X_train.npy \
+  --train-labels data/processed/y_train.npy \
+  --val-features data/processed/X_val.npy \
+  --val-labels data/processed/y_val.npy \
+  --epochs 20 \
+  --batch-size 32 \
+  --model-size medium
+
+# Monitor training
+tensorboard --logdir results/logs
+```
 
 ---
 
