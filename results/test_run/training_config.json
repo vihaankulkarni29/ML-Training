@@ -1,0 +1,17 @@
+{
+    "train_features": "data/processed/X.npy",
+    "train_labels": "data/processed/y.npy",
+    "val_features": "data/processed/X.npy",
+    "val_labels": "data/processed/y.npy",
+    "batch_size": 16,
+    "epochs": 3,
+    "learning_rate": 0.001,
+    "model_size": "medium",
+    "num_antibiotics": 3,
+    "best_epoch": 3,
+    "best_val_loss": 0.23291847348213196,
+    "total_params": 3845443,
+    "trainable_params": 3845443,
+    "pos_weight": -0.33155080676078796,
+    "training_date": "2026-01-14T12:24:49.993617"
+}

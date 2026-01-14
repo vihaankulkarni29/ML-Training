@@ -284,8 +284,7 @@ def train_deepg2p(
         optimizer,
         mode='min',
         factor=0.5,
-        patience=3,
-        verbose=True
+        patience=3
     )
     
     # Training loop

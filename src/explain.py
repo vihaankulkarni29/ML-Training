@@ -565,11 +565,19 @@ def explain_sample(
     # Infer model configuration from checkpoint
     state_dict = checkpoint.get('model_state_dict', checkpoint)
     
+    # Infer num_antibiotics from checkpoint
+    if 'fc.weight' in state_dict:
+        num_antibiotics_from_checkpoint = state_dict['fc.weight'].shape[0]
+        print(f"   Detected {num_antibiotics_from_checkpoint} antibiotics from checkpoint")
+    else:
+        num_antibiotics_from_checkpoint = 10
+        print(f"   Using default {num_antibiotics_from_checkpoint} antibiotics")
+    
     # Create model
     model = create_deepg2p_model(
         input_length=6000,
         input_channels=1,
-        num_antibiotics=10,
+        num_antibiotics=num_antibiotics_from_checkpoint,
         model_size='medium'
     )
     
