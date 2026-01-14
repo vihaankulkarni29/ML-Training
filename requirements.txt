@@ -11,6 +11,7 @@ torchaudio>=2.0.0
 # Visualization & Monitoring
 matplotlib>=3.7.0
 plotly>=5.17.0
+kaleido>=0.2.1
 tensorboard>=2.13.0
 tqdm>=4.65.0
 
